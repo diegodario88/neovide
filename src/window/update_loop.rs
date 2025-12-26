@@ -87,6 +87,7 @@ pub struct UpdateLoop {
     pending_draw_commands: Vec<Vec<DrawCommand>>,
     animation_start: Instant, // When the last animation started (went from idle to animating)
     animation_time: Duration, // How long the current animation has been simulated, will usually be in the future
+    last_font_cache_cleanup: Instant,
 
     window_wrapper: WinitWindowWrapper,
     create_window_allowed: bool,
@@ -115,6 +116,7 @@ impl UpdateLoop {
         let pending_draw_commands = Vec::new();
         let animation_start = Instant::now();
         let animation_time = Duration::from_millis(0);
+        let last_font_cache_cleanup = Instant::now();
 
         let cmd_line_settings = settings.get::<CmdLineSettings>();
         let idle = cmd_line_settings.idle;
@@ -133,6 +135,7 @@ impl UpdateLoop {
             pending_draw_commands,
             animation_start,
             animation_time,
+            last_font_cache_cleanup,
 
             window_wrapper,
             create_window_allowed: false,
@@ -310,12 +313,15 @@ impl UpdateLoop {
             // Cache purging should only happen once we become idle; doing it while throttling for
             // vsync caused Skia to evict glyphs mid-animation and re-upload them every frame.
             // See https://github.com/neovide/neovide/pull/3324
-            if self.num_consecutive_rendered > 0 {
+            if self.num_consecutive_rendered > 0
+                && self.last_font_cache_cleanup.elapsed() > Duration::from_secs(5)
+            {
                 self.window_wrapper
                     .renderer
                     .grid_renderer
                     .shaper
                     .cleanup_font_cache();
+                self.last_font_cache_cleanup = Instant::now();
             }
             self.num_consecutive_rendered = 0;
             tracy_plot!(
