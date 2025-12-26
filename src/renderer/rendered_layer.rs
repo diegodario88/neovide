@@ -44,10 +44,15 @@ impl FloatingLayer<'_> {
 
         root_canvas.save();
         root_canvas.clip_path(&silhouette, None, Some(false));
-        let need_blur = has_transparency || settings.floating_blur;
 
-        if need_blur {
-            if let Some(blur) = blur(
+        // Optimization: Only apply the expensive blur filter if the window is actually transparent.
+        // If the window is fully opaque (both content and background), blurring the layer behind it is wasteful
+        // as the opaque background will completely cover the blurred result.
+        let need_blur =
+            (has_transparency || default_background.a() < 255) && settings.floating_blur;
+
+        let blur_filter = if need_blur {
+            blur(
                 (
                     settings.floating_blur_amount_x,
                     settings.floating_blur_amount_y,
@@ -55,26 +60,23 @@ impl FloatingLayer<'_> {
                 None,
                 None,
                 None,
-            ) {
-                let paint = Paint::default()
-                    .set_anti_alias(false)
-                    .set_blend_mode(BlendMode::Src)
-                    .to_owned();
-                let save_layer_rec = SaveLayerRec::default()
-                    .backdrop(&blur)
-                    .bounds(&bound_rect)
-                    .paint(&paint);
-                root_canvas.save_layer(&save_layer_rec);
-                root_canvas.restore();
-            }
-        }
+            )
+        } else {
+            None
+        };
 
         let paint = Paint::default()
             .set_anti_alias(false)
             .set_blend_mode(BlendMode::SrcOver)
             .to_owned();
 
-        let save_layer_rec = SaveLayerRec::default().bounds(&bound_rect).paint(&paint);
+        let mut save_layer_rec = SaveLayerRec::default();
+        save_layer_rec = save_layer_rec.bounds(&bound_rect);
+        save_layer_rec = save_layer_rec.paint(&paint);
+
+        if let Some(filter) = &blur_filter {
+            save_layer_rec = save_layer_rec.backdrop(filter);
+        }
 
         root_canvas.save_layer(&save_layer_rec);
         let background_paint = Paint::default().set_color(default_background).to_owned();
