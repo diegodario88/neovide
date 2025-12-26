@@ -410,6 +410,7 @@ impl Renderer {
 
     pub fn handle_draw_commands(&mut self, batch: Vec<DrawCommand>) -> DrawCommandResult {
         let settings = self.settings.get::<RendererSettings>();
+        log::trace!("Draw command batch size: {}", batch.len());
         let mut result = DrawCommandResult {
             font_changed: false,
             should_show: false,
