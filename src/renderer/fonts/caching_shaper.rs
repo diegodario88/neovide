@@ -24,7 +24,7 @@ use crate::{
     units::PixelSize,
 };
 
-const FONT_CACHE_SIZE: usize = 8 * 1024 * 1024;
+const FONT_CACHE_SIZE: usize = 32 * 1024 * 1024;
 
 pub struct CachingShaper {
     options: FontOptions,
