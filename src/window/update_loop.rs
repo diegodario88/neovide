@@ -303,6 +303,10 @@ impl UpdateLoop {
             self.animate();
             self.schedule_render(skipped_frame);
         } else {
+            // Check if we need to schedule a render for the blink animation
+            if let Some(time_remaining) = self.window_wrapper.renderer.animate_time_remaining() {
+                self.should_render = ShouldRender::Deadline(Instant::now() + time_remaining);
+            }
             // Cache purging should only happen once we become idle; doing it while throttling for
             // vsync caused Skia to evict glyphs mid-animation and re-upload them every frame.
             // See https://github.com/neovide/neovide/pull/3324
