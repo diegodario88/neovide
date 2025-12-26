@@ -107,6 +107,17 @@ impl BlinkStatus {
         }
     }
 
+    pub fn is_static(&self) -> bool {
+        self.current_cursor
+            .as_ref()
+            .map(|c| is_static(c))
+            .unwrap_or(true)
+    }
+
+    pub fn get_transition_time(&self) -> Instant {
+        self.transition_time
+    }
+
     /// Whether or not the cursor should be drawn (only applicable when smooth blink is disabled).
     pub fn should_render(&self) -> bool {
         match self.state {

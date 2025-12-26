@@ -1,7 +1,11 @@
 mod blink;
 mod cursor_vfx;
 
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::HashMap,
+    sync::Arc,
+    time::{Duration, Instant},
+};
 
 use approx::AbsDiffEq;
 use itertools::Itertools;
@@ -530,6 +534,28 @@ impl CursorRenderer {
         }
         tracy_plot!("cursor animating", animating as u8 as f64);
         animating
+    }
+
+    pub fn animate_time_remaining(&self) -> Option<Duration> {
+        let settings = self.settings.get::<CursorSettings>();
+        if !settings.smooth_blink {
+            return None;
+        }
+
+        if self.blink_status.is_static() {
+            return None;
+        }
+
+        if !self.blink_status.should_animate() {
+            return None;
+        }
+
+        let now = Instant::now();
+        let time_remaining = self
+            .blink_status
+            .get_transition_time()
+            .saturating_duration_since(now);
+        Some(time_remaining)
     }
 
     fn draw_rectangle(&self, canvas: &Canvas, paint: &Paint) -> Path {

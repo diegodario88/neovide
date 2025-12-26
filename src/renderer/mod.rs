@@ -391,6 +391,10 @@ impl Renderer {
         animating
     }
 
+    pub fn animate_time_remaining(&self) -> Option<std::time::Duration> {
+        self.cursor_renderer.animate_time_remaining()
+    }
+
     pub fn handle_config_changed(&mut self, config: HotReloadConfigs) {
         match config {
             HotReloadConfigs::Font(font) => match font {
