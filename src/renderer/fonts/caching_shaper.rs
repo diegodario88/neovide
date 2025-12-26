@@ -24,18 +24,12 @@ use crate::{
     units::PixelSize,
 };
 
-#[derive(new, Clone, Hash, PartialEq, Eq, Debug)]
-struct ShapeKey {
-    pub text: String,
-    pub style: CoarseStyle,
-}
-
 const FONT_CACHE_SIZE: usize = 8 * 1024 * 1024;
 
 pub struct CachingShaper {
     options: FontOptions,
     font_loader: FontLoader,
-    blob_cache: LruCache<ShapeKey, Vec<TextBlob>>,
+    blob_cache: [LruCache<String, Vec<TextBlob>>; 4],
     shape_context: ShapeContext,
     scale_factor: f32,
     linespace: f32,
@@ -49,7 +43,7 @@ impl CachingShaper {
         let mut shaper = CachingShaper {
             options,
             font_loader: FontLoader::new(font_size),
-            blob_cache: LruCache::new(NonZeroUsize::new(10000).unwrap()),
+            blob_cache: std::array::from_fn(|_| LruCache::new(NonZeroUsize::new(10000).unwrap())),
             shape_context: ShapeContext::new(),
             scale_factor,
             linespace: 0.0,
@@ -162,7 +156,9 @@ impl CachingShaper {
         let (_, font_width) = self.info();
         info!("Reset Font Loader: font_size: {font_size:.2}px, font_width: {font_width:.2}px");
 
-        self.blob_cache.clear();
+        for cache in &mut self.blob_cache {
+            cache.clear();
+        }
     }
 
     pub fn font_names(&self) -> Vec<String> {
@@ -444,15 +440,15 @@ impl CachingShaper {
     pub fn shape_cached(&mut self, word: Word<'_>, style: CoarseStyle) -> &Vec<TextBlob> {
         tracy_zone!("shape_cached");
         let text = word.text;
-        let key = ShapeKey::new(text.to_string(), style);
+        let style_index = style_index(style);
 
-        if !self.blob_cache.contains(&key) {
+        if !self.blob_cache[style_index].contains(text) {
             trace!("Shaping text: {text:?}");
             let blobs = self.shape(word, style);
-            self.blob_cache.put(key.clone(), blobs);
+            self.blob_cache[style_index].put(text.to_string(), blobs);
         }
 
-        self.blob_cache.get(&key).unwrap()
+        self.blob_cache[style_index].get(text).unwrap()
     }
 
     fn get_font_features(&self, name: Option<&str>) -> Vec<(String, u16)> {
@@ -471,4 +467,8 @@ impl CachingShaper {
             vec![]
         }
     }
+}
+
+fn style_index(style: CoarseStyle) -> usize {
+    (style.bold as usize) | ((style.italic as usize) << 1)
 }
