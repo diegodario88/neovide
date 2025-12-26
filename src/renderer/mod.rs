@@ -417,8 +417,8 @@ impl Renderer {
 
         for draw_command in batch {
             self.handle_draw_command(draw_command, &mut result);
-            tracy_named_frame!("neovim draw batch processed");
         }
+        tracy_named_frame!("neovim draw batch processed");
         self.flush(&settings);
 
         result
